@@ -17,6 +17,7 @@ const env: Env = { siteUrl: "https://site.test", adminEmail: "admin@me.com", adm
 beforeEach(() => { repos = new MemoryRepos(); setContainer(createContainer({ env, repos, store: new MemoryStore(), calendar: new FakeCalendar(), demo: false })); });
 afterEach(() => vi.unstubAllGlobals());
 
+const ctx = { params: Promise.resolve({}) };
 const cb = (state: string, nonce: string | null, code = "abc") =>
   callback(new Request(`https://site.test/api/admin/calendar/callback?code=${code}&state=${state}`, { headers: nonce ? { cookie: `gcal_nonce=${nonce}` } : {} }));
 
@@ -50,12 +51,12 @@ describe("Google OAuth callback", () => {
 
   it("connect redirects to Google with signed state and an HttpOnly Lax nonce cookie", async () => {
     const cookie = `${"__Host-admin_session"}=${await signSession({ sub: "admin@me.com", role: "admin" }, SECRET, 600)}`;
-    const r = await connect(new Request("https://site.test/api/admin/calendar/connect", { headers: { cookie } }));
+    const r = await connect(new Request("https://site.test/api/admin/calendar/connect", { headers: { cookie } }), ctx);
     expect(r.status).toBe(302);
     const loc = new URL(r.headers.get("location")!);
     expect(loc.host).toBe("accounts.google.com");
     expect(loc.searchParams.get("state")!.split(".")).toHaveLength(3);
     expect(r.headers.get("set-cookie")).toMatch(/HttpOnly.*SameSite=Lax|SameSite=Lax.*HttpOnly/);
-    expect((await connect(new Request("https://site.test/api/admin/calendar/connect"))).status).toBe(401);
+    expect((await connect(new Request("https://site.test/api/admin/calendar/connect"), ctx)).status).toBe(401);
   });
 });

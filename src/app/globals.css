@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+html { -webkit-text-size-adjust: 100%; }
+body { @apply bg-ink-50 text-ink-900 antialiased; }
+:focus-visible { outline: 2px solid #0f766e; outline-offset: 2px; border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply btn bg-ink-950 text-white hover:bg-ink-700; }
+  .btn-brand { @apply btn bg-brand text-white hover:bg-brand-dark; }
+  .btn-ghost { @apply btn border border-ink-300 bg-white text-ink-900 hover:bg-ink-100; }
+  .card { @apply rounded-2xl border border-ink-100 bg-white shadow-card; }
+  .input { @apply w-full rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-500 focus:border-brand; }
+  .label { @apply mb-1.5 block text-sm font-medium text-ink-700; }
+  .skeleton { @apply animate-pulse rounded-lg bg-ink-100; }
+}

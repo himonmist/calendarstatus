@@ -57,7 +57,9 @@ export function isSlotAvailable(slot: Interval, cfg: AvailabilityConfig, c: Conf
 
 export function summarizeDay(date: string, cfg: AvailabilityConfig, c: Conflicts): DayStatus {
   const slots = computeDaySlots(date, cfg, c);
-  if (slots.length === 0) return "unavailable";
+  // Slots before the earliest bookable instant (past / minimum notice) don't count: such a day is unavailable, not "busy".
+  const earliest = addMinutes(c.now, cfg.minNoticeHours * 60);
+  if (!slots.some(s => s.start >= earliest)) return "unavailable";
   const free = slots.filter(s => s.available).length;
   if (free === 0) return "busy";
   return free <= 3 ? "limited" : "available";

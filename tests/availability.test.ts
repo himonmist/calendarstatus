@@ -78,6 +78,12 @@ describe("availability engine", () => {
     for (const x of s) expect(Object.keys(x).sort()).toEqual(["available", "end", "start"]);
   });
 
+  it("days in the past or inside the notice window are unavailable, not busy", () => {
+    const cfg = base({ minNoticeHours: 24 });
+    expect(summarizeDay(D, cfg, { busy: [], bookings: [], holds: [], now: at(D, "12:00") })).toBe("unavailable");
+    expect(summarizeDay(D, cfg, { busy: [], bookings: [], holds: [], now: new Date("2026-10-30T00:00:00Z") })).toBe("unavailable");
+  });
+
   it("summarizes day status", () => {
     const cfg = base();
     expect(summarizeDay("2026-10-16", cfg, { busy: [], bookings: [], holds: [], now })).toBe("unavailable");

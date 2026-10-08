@@ -29,7 +29,7 @@ interface Opts<S extends ZodTypeAny> {
 
 /** Central guard: rate limit → auth → CSRF (admin) → size-limited JSON parse → validation → safe error mapping. */
 export function handler<S extends ZodTypeAny = ZodTypeAny>(opts: Opts<S>, fn: (x: HandlerCtx<S>) => Promise<Response | unknown>) {
-  return async (req: Request, routeCtx?: { params?: Promise<Record<string, string>> | Record<string, string> }): Promise<Response> => {
+  return async (req: Request, routeCtx: { params: Promise<any> }): Promise<Response> => {
     const id = randomUUID();
     try {
       const c = getContainer();
@@ -55,7 +55,7 @@ export function handler<S extends ZodTypeAny = ZodTypeAny>(opts: Opts<S>, fn: (x
         try { raw = text ? JSON.parse(text) : {}; } catch { return json({ error: "Invalid JSON" }, 400); }
         body = opts.schema.parse(raw);
       }
-      const params = routeCtx?.params ? await routeCtx.params : {};
+      const params: Record<string, string> = routeCtx?.params ? await routeCtx.params : {};
       const out = await fn({ req, c, ip, params, body: body as z.infer<S>, session, url: new URL(req.url) });
       return out instanceof Response ? out : json(out);
     } catch (e) {

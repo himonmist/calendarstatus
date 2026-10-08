@@ -105,6 +105,7 @@ export function createContainer(o: Partial<{ env: Env; repos: Repos; store: Stor
   return { env, repos, store, svc, mailer, limiter: o.limiter ?? new RateLimiter(), now, demo, calendar, availability };
 }
 
-let instance: Container | undefined;
-export const getContainer = () => (instance ??= createContainer());
-export const setContainer = (c: Container | undefined) => { instance = c; };
+// globalThis: Next.js may bundle route handlers and server components separately; they must share one container (and in-memory demo store).
+const g = globalThis as unknown as { __container?: Container };
+export const getContainer = () => (g.__container ??= createContainer());
+export const setContainer = (c: Container | undefined) => { g.__container = c; };
