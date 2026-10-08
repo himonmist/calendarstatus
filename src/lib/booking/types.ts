@@ -50,7 +50,11 @@ export interface CalendarEventInput {
   title: string; description: string; start: Date; end: Date; timezone: string; attendeeEmail?: string;
 }
 
+/** Private details: ADMIN ONLY. Never route through public endpoints. */
+export interface PrivateEvent extends Interval { id: string; title: string; managed?: boolean }
+
 export interface CalendarProvider {
+  listEvents?(range: Interval): Promise<PrivateEvent[]>;
   getBusy(range: Interval): Promise<BusyBlock[]>;
   createEvent(input: CalendarEventInput): Promise<string>;
   updateEvent(id: string, patch: Partial<CalendarEventInput>): Promise<void>;
@@ -58,4 +62,4 @@ export interface CalendarProvider {
 }
 
 export type NotifyEvent =
-  | { type: "booking_received" | "admin_new_booking" | "booking_confirmed" | "booking_cancelled" | "booking_rescheduled" | "booking_rejected"; booking: Booking };
+  | { type: "booking_received" | "admin_new_booking" | "booking_confirmed" | "booking_cancelled" | "booking_rescheduled" | "booking_rejected" | "reminder_24h" | "reminder_1h"; booking: Booking };

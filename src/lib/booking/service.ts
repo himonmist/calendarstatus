@@ -17,7 +17,7 @@ export class CalendarUnavailableError extends Error {
 }
 
 export interface ServiceDeps {
-  store: Store; calendar: CalendarProvider; now: () => Date; autoConfirm: boolean;
+  store: Store; calendar: CalendarProvider; now: () => Date; autoConfirm: boolean | (() => Promise<boolean>);
   getConfig: () => Promise<AvailabilityConfig>;
   getProgram: (id: string) => Promise<Program | null>;
   notify: (e: NotifyEvent) => Promise<void>;
@@ -52,6 +52,19 @@ export class BookingService {
     }
   }
 
+  /** One calendar round-trip for a whole month instead of one per day. */
+  private async prefetchBusy(dates: string[]) {
+    if (!dates.length) return;
+    const t = this.d.now().getTime();
+    const ttl = this.d.busyTtlMs ?? 60_000;
+    if (dates.every(x => { const h = this.busyCache.get(x); return h && t - h.at < ttl; })) return;
+    const first = new Date(`${dates[0]}T00:00:00Z`).getTime(), last = new Date(`${dates[dates.length - 1]}T00:00:00Z`).getTime();
+    try {
+      const busy = (await this.d.calendar.getBusy({ start: new Date(first - 2 * DAY), end: new Date(last + 3 * DAY) })).filter(b => !b.managed);
+      for (const x of dates) this.busyCache.set(x, { at: t, busy });
+    } catch { /* fall through: busyFor applies stale-cache / fail-closed rules per day */ }
+  }
+
   private async conflicts(tx: Store, date: string, busy: BusyBlock[], opts: { excludeBookingId?: string; excludeHash?: string } = {}) {
     const day = new Date(`${date}T00:00:00Z`).getTime();
     const range = { start: new Date(day - 2 * DAY), end: new Date(day + 3 * DAY) };
@@ -78,6 +91,7 @@ export class BookingService {
   async getMonth(dates: string[], programId: string): Promise<Record<string, DayStatus>> {
     const p = await this.activeProgram(programId);
     const cfg = await this.cfgFor(p);
+    await this.prefetchBusy(dates);
     const out: Record<string, DayStatus> = {};
     for (const date of dates) {
       const busy = await this.busyFor(date, false);
@@ -120,6 +134,7 @@ export class BookingService {
     const date = utcToZonedParts(start, cfg.timezone).date;
     const hash = sha(input.holdToken);
     const busy = await this.busyFor(date, true); // always re-validate against live calendar
+    const auto = typeof this.d.autoConfirm === "function" ? await this.d.autoConfirm() : this.d.autoConfirm;
 
     const booking = await this.d.store.transaction(async tx => {
       const hold = await tx.getHold(hash);
@@ -141,7 +156,7 @@ export class BookingService {
         budgetRange: input.budgetRange, notes: input.notes, leadSource: input.leadSource,
         createdAt: now, updatedAt: now, history: [{ status: "pending", at: now, actor: ctx.ip ? `customer@${ctx.ip}` : "customer" }],
       };
-      if (this.d.autoConfirm) { b.status = "confirmed"; b.history.push({ status: "confirmed", at: now, actor: "system", note: "auto-confirmed" }); }
+      if (auto) { b.status = "confirmed"; b.history.push({ status: "confirmed", at: now, actor: "system", note: "auto-confirmed" }); }
       await tx.insertBooking(b);
       return b;
     });
